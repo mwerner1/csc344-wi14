@@ -15,7 +15,7 @@ AudioProcessor* JUCE_CALLTYPE createPluginFilter();
 
 
 //==============================================================================
-/** A demo synth sound that's just a basic sine wave.. */
+// Basic sine wave synth sound
 class SineWaveSound : public SynthesiserSound
 {
 public:
@@ -25,6 +25,7 @@ public:
     bool appliesToChannel (const int /*midiChannel*/)           { return true; }
 };
 
+// Square wave synth sound
 class SquareWaveSound : public SynthesiserSound
 {
 public:
@@ -34,6 +35,7 @@ public:
     bool appliesToChannel (const int /*midiChannel*/)           { return true; }
 };
 
+// Sawtooth wave synth sound
 class SawToothWaveSound : public SynthesiserSound
 {
 public:
@@ -44,7 +46,7 @@ public:
 };
 
 //==============================================================================
-/** A simple demo synth voice that just plays a sine wave.. */
+// Synth voice that plays either a sine wave, square wave, or sawtooth wave
 class SineWaveVoice  : public SynthesiserVoice
 {
 public:
@@ -55,9 +57,11 @@ public:
     {
     }
     
+    // Determines if sound is a sawtooth, square, or sine wave sound
     bool canPlaySound (SynthesiserSound* sound)
     {
-        //return dynamic_cast <SineWaveSound*> (sound) != 0;
+        // Determine if sound is a sine wave, square wave, or sawtooth by casting the sound
+        // and checking to see if its value is non-zero
         if (dynamic_cast<SineWaveSound*>(sound) != 0)
         {
             return true;
@@ -76,6 +80,8 @@ public:
         }
     }
     
+    // Caculates the angle change for both the sound wave and the LFO wave using the midi
+    // note in hertz and an arbitrary 6 hertz frequency for the LFO
     void startNote (int midiNoteNumber, float velocity,
                     SynthesiserSound* /*sound*/, int /*currentPitchWheelPosition*/)
     {
@@ -85,14 +91,18 @@ public:
         tailOff = 0.0;
         
         double cyclesPerSecond = MidiMessage::getMidiNoteInHertz (midiNoteNumber);
+        double lfoFrequency = 8.0;
+        
         double cyclesPerSample = cyclesPerSecond / getSampleRate();
-        double lfoCyclesPerSample = 6.0 / getSampleRate();
+        double lfoCyclesPerSample = lfoFrequency / getSampleRate();
         
         angleDelta = cyclesPerSample * 2.0 * double_Pi;
         lfoAngleDelta = lfoCyclesPerSample * 2.0 * double_Pi;
         
     }
     
+    // Begins a tail off or stops playing immediatedly and resets angle delta values for the sound
+    // and the LFO
     void stopNote (bool allowTailOff)
     {
         if (allowTailOff)
@@ -139,39 +149,7 @@ public:
                     // LFO used to create tremolo
                     const float lfoCurrentSample = (float) ((4.0 * sin (lfoCurrentAngle)) * level * tailOff) + 0.7;
                     
-                    if (dynamic_cast<SineWaveSound*>(sound) != NULL)
-                    {
-                        currentSample = (float) ((lfoCurrentSample * sin (currentAngle)) * level * tailOff);
-                    }
-                    else if (dynamic_cast<SquareWaveSound*>(sound) != NULL)
-                    {
-                        float sum = 0.0;
-                        
-                        for (int i=0; i<10; i++)
-                        {
-                            sum += sin(currentAngle * (2 * i + 1)) * level * tailOff /
-                                (2 * i + 1);
-                        }
-                        
-                        currentSample = sum;
-                    }
-                    else if (dynamic_cast<SawToothWaveSound*>(sound) != NULL)
-                    {
-                        float sum = 0.0;
-                        
-                        for (int i=1; i<10; i++)
-                        {
-                            sum += (pow(-1.0, (double)i+1) / i) * (sin(currentAngle * i)) *
-                                    level * tailOff;
-                        }
-                        currentSample = sum;
-                    }
-                    else
-                    {
-                        std::cout << "Error! Defaulting to sine wave.\n";
-                       
-                        currentSample = (float) ((lfoCurrentSample * sin (currentAngle)) * level * tailOff);
-                    }
+                    currentSample = calculateSample(sound, currentSample, lfoCurrentSample, true);
                     
                     for (int i = outputBuffer.getNumChannels(); --i >= 0;)
                         *outputBuffer.getSampleData (i, startSample) += (currentSample);
@@ -203,38 +181,7 @@ public:
                     // LFO used to create tremolo
                     const float lfoCurrentSample = (float) ((4.0 * sin (lfoCurrentAngle)) * level) + 0.7;
                     
-                    if (dynamic_cast<SineWaveSound*>(sound) != NULL)
-                    {
-                        currentSample = (float) ((lfoCurrentSample * sin (currentAngle)) * level);
-                    }
-                    else if (dynamic_cast<SquareWaveSound*>(sound) != NULL)
-                    {
-                        float sum = 0.0;
-                        
-                        for (int i=0; i<10; i++)
-                        {
-                            sum += sin(currentAngle * (2 * i + 1)) * level / (2 * i + 1);
-                        }
-                        
-                        currentSample = sum;
-                    }
-                    else if (dynamic_cast<SawToothWaveSound*>(sound) != NULL)
-                    {
-                        float sum = 0.0;
-                        
-                        for (int i=1; i<10; i++)
-                        {
-                            sum += (pow(-1.0, (double)i+1) / i) * (sin(currentAngle * i)) * level;
-                        }
-                        
-                        currentSample = sum;
-                    }
-                    else
-                    {
-                        std::cout << "Error! Defaulting to sine wave.\n";
-                        
-                        currentSample = (float) ((lfoCurrentSample * sin (currentAngle)) * level);
-                    }
+                    currentSample = calculateSample(sound, currentSample, lfoCurrentSample, false);
                     
                     for (int i = outputBuffer.getNumChannels(); --i >= 0;)
                         *outputBuffer.getSampleData (i, startSample) += (currentSample);
@@ -245,6 +192,81 @@ public:
                 }
             }
         }
+    }
+    
+    float calculateSample(SynthesiserSound *sound, float currentSample, float lfo, bool hasTailOff)
+    {
+        if (hasTailOff)
+        {
+            if (dynamic_cast<SineWaveSound*>(sound) != NULL)
+            {
+                currentSample = (float) ((lfo * sin (currentAngle)) * level * tailOff);
+            }
+            else if (dynamic_cast<SquareWaveSound*>(sound) != NULL)
+            {
+                float sum = 0.0;
+                
+                for (int i=0; i<10; i++)
+                {
+                    sum += lfo * sin(currentAngle * (2 * i + 1)) * level * tailOff /
+                    (2 * i + 1);
+                }
+                
+                currentSample = sum;
+            }
+            else if (dynamic_cast<SawToothWaveSound*>(sound) != NULL)
+            {
+                float sum = 0.0;
+                
+                for (int i=1; i<10; i++)
+                {
+                    sum += lfo * (pow(-1.0, (double)i+1) / i) * (sin(currentAngle * i)) *
+                    level * tailOff;
+                }
+                currentSample = sum;
+            }
+            else
+            {
+                // Default to a sine wave
+                currentSample = (float) ((lfo * sin (currentAngle)) * level * tailOff);
+            }
+        }
+        else
+        {
+            if (dynamic_cast<SineWaveSound*>(sound) != NULL)
+            {
+                currentSample = (float) ((lfo * sin (currentAngle)) * level);
+            }
+            else if (dynamic_cast<SquareWaveSound*>(sound) != NULL)
+            {
+                float sum = 0.0;
+                
+                for (int i=0; i<10; i++)
+                {
+                    sum += lfo * sin(currentAngle * (2 * i + 1)) * level / (2 * i + 1);
+                }
+                
+                currentSample = sum;
+            }
+            else if (dynamic_cast<SawToothWaveSound*>(sound) != NULL)
+            {
+                float sum = 0.0;
+                
+                for (int i=1; i<10; i++)
+                {
+                    sum += lfo * (pow(-1.0, (double)i+1) / i) * (sin(currentAngle * i)) * level;
+                }
+                
+                currentSample = sum;
+            }
+            else
+            {
+                //Default to a sine wave
+                currentSample = (float) ((lfo * sin (currentAngle)) * level);
+            }
+        }
+        
+        return currentSample;
     }
     
 private:
@@ -320,18 +342,15 @@ void Project2AudioProcessor::setParameter (int index, float newValue)
             
             if (waveType == sine)
             {
-                std::cout << "Sine Wave!\n";
                 synth.addSound(new SineWaveSound());
                 
             }
             else if (waveType == square)
             {
-                std::cout << "Square Wave!\n";
                 synth.addSound(new SquareWaveSound());
             }
             else if (waveType == sawTooth)
             {
-                std::cout << "Sawtooth Wave!\n";
                 synth.addSound(new SawToothWaveSound());
             }
             break;
