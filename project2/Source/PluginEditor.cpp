@@ -23,7 +23,8 @@ Project2AudioProcessorEditor::Project2AudioProcessorEditor (Project2AudioProcess
     gainSlider ("gain"),
     delaySlider ("delay"),
     sineWaveButton("Sine Wave"),
-    squareWaveButton("Square Wave")
+    squareWaveButton("Square Wave"),
+    sawToothWaveButton("Sawtooth Wave")
 {
     // add some sliders..
     addAndMakeVisible (gainSlider);
@@ -45,6 +46,10 @@ Project2AudioProcessorEditor::Project2AudioProcessorEditor (Project2AudioProcess
     addAndMakeVisible(squareWaveButton);
     squareWaveButton.setRadioGroupId(1);
     squareWaveButton.addListener(this);
+    
+    addAndMakeVisible(sawToothWaveButton);
+    sawToothWaveButton.setRadioGroupId(1);
+    sawToothWaveButton.addListener(this);
     
     waveTypeLabel.attachToComponent(&sineWaveButton, false);
     waveTypeLabel.setFont(Font (11.0f));
@@ -93,7 +98,8 @@ void Project2AudioProcessorEditor::resized()
     //delaySlider.setBounds (200, 60, 150, 40);
     
     sineWaveButton.setBounds(200, 60, 80, 30);
-    squareWaveButton.setBounds(200, 80, 90, 30);
+    squareWaveButton.setBounds(200, 80, 80, 30);
+    sawToothWaveButton.setBounds(280, 60, 100, 30);
     
     const int keyboardHeight = 70;
     midiKeyboard.setBounds (4, getHeight() - keyboardHeight - 4, getWidth() - 8, keyboardHeight);
@@ -141,11 +147,18 @@ void Project2AudioProcessorEditor::buttonClicked(Button* button)
 {
     if (sineWaveButton.getToggleState())
     {
-        //getProcessor()->waveType = Project2AudioProcessor::sine;
+        getProcessor()->setParameterNotifyingHost(Project2AudioProcessor::waveParam,
+                                     (float)Project2AudioProcessor::sine);
     }
     else if (squareWaveButton.getToggleState())
     {
-        //getProcessor()->waveType = Project2AudioProcessor::square;
+        getProcessor()->setParameterNotifyingHost(Project2AudioProcessor::waveParam,
+                                     (float)Project2AudioProcessor::square);
+    }
+    else if (sawToothWaveButton.getToggleState())
+    {
+        getProcessor()->setParameterNotifyingHost(Project2AudioProcessor::waveParam,
+                                                  (float)Project2AudioProcessor::sawTooth);
     }
 }
 

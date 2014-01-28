@@ -25,6 +25,24 @@ public:
     bool appliesToChannel (const int /*midiChannel*/)           { return true; }
 };
 
+class SquareWaveSound : public SynthesiserSound
+{
+public:
+    SquareWaveSound() {}
+    
+    bool appliesToNote (const int /*midiNoteNumber*/)           { return true; }
+    bool appliesToChannel (const int /*midiChannel*/)           { return true; }
+};
+
+class SawToothWaveSound : public SynthesiserSound
+{
+public:
+    SawToothWaveSound() {}
+    
+    bool appliesToNote (const int /*midiNoteNumber*/)           { return true; }
+    bool appliesToChannel (const int /*midiChannel*/)           { return true; }
+};
+
 //==============================================================================
 /** A simple demo synth voice that just plays a sine wave.. */
 class SineWaveVoice  : public SynthesiserVoice
@@ -39,7 +57,23 @@ public:
     
     bool canPlaySound (SynthesiserSound* sound)
     {
-        return dynamic_cast <SineWaveSound*> (sound) != 0;
+        //return dynamic_cast <SineWaveSound*> (sound) != 0;
+        if (dynamic_cast<SineWaveSound*>(sound) != 0)
+        {
+            return true;
+        }
+        else if (dynamic_cast<SquareWaveSound*>(sound) != 0)
+        {
+            return true;
+        }
+        else if (dynamic_cast<SawToothWaveSound*>(sound) != 0)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
     
     void startNote (int midiNoteNumber, float velocity,
@@ -96,30 +130,48 @@ public:
         {
             if (tailOff > 0)
             {
+                SynthesiserSound *sound = getCurrentlyPlayingSound();
+                
                 while (--numSamples >= 0)
                 {
-                    // Eventual logic to determine which wave type selected from plugin UI
-//                    if (wave == Project2AudioProcessor::sine)
-//                    {
-//                        std::cout << "Sine\n";
-//                    }
-//                    else if (wave == Project2AudioProcessor::square)
-//                    {
-//                        std::cout << "Square\n";
-//                    }
+                    float currentSample;
                     
                     // LFO used to create tremolo
                     const float lfoCurrentSample = (float) ((4.0 * sin (lfoCurrentAngle)) * level * tailOff) + 0.7;
                     
-                    //Sine wave
-                    //const float currentSample = (float) ((lfoCurrentSample * sin (currentAngle)) * level * tailOff);
-                    
-                    //Square wave
-                    const float currentSample = (float) (4 / double_Pi) *
-                                                ((lfoCurrentSample * sin(currentAngle) * level * tailOff) +
-                                                ((lfoCurrentSample * sin(3 * currentAngle) * level * tailOff) / 3) +
-                                                ((lfoCurrentSample * sin(5 * currentAngle) * level * tailOff) / 5) +
-                                                ((lfoCurrentSample * sin(7 * currentAngle) * level * tailOff) / 7));
+                    if (dynamic_cast<SineWaveSound*>(sound) != NULL)
+                    {
+                        currentSample = (float) ((lfoCurrentSample * sin (currentAngle)) * level * tailOff);
+                    }
+                    else if (dynamic_cast<SquareWaveSound*>(sound) != NULL)
+                    {
+                        float sum = 0.0;
+                        
+                        for (int i=0; i<10; i++)
+                        {
+                            sum += sin(currentAngle * (2 * i + 1)) * level * tailOff /
+                                (2 * i + 1);
+                        }
+                        
+                        currentSample = sum;
+                    }
+                    else if (dynamic_cast<SawToothWaveSound*>(sound) != NULL)
+                    {
+                        float sum = 0.0;
+                        
+                        for (int i=1; i<10; i++)
+                        {
+                            sum += (pow(-1.0, (double)i+1) / i) * (sin(currentAngle * i)) *
+                                    level * tailOff;
+                        }
+                        currentSample = sum;
+                    }
+                    else
+                    {
+                        std::cout << "Error! Defaulting to sine wave.\n";
+                       
+                        currentSample = (float) ((lfoCurrentSample * sin (currentAngle)) * level * tailOff);
+                    }
                     
                     for (int i = outputBuffer.getNumChannels(); --i >= 0;)
                         *outputBuffer.getSampleData (i, startSample) += (currentSample);
@@ -142,20 +194,47 @@ public:
             }
             else
             {
+                SynthesiserSound *sound = getCurrentlyPlayingSound();
+                
                 while (--numSamples >= 0)
                 {
+                    float currentSample;
+                    
                     // LFO used to create tremolo
                     const float lfoCurrentSample = (float) ((4.0 * sin (lfoCurrentAngle)) * level) + 0.7;
                     
-                    //Sine wave
-                    //const float currentSample = (float) ((lfoCurrentSample * sin (currentAngle)) * level);
-                    
-                    //Square wave
-                    const float currentSample = (float) (4 / double_Pi) *
-                                                ((lfoCurrentSample * sin(currentAngle) * level) +
-                                                ((lfoCurrentSample * sin(3 * currentAngle) * level) / 3) +
-                                                ((lfoCurrentSample * sin(5 * currentAngle) * level) / 5) +
-                                                ((lfoCurrentSample * sin(7 * currentAngle) * level) / 7));
+                    if (dynamic_cast<SineWaveSound*>(sound) != NULL)
+                    {
+                        currentSample = (float) ((lfoCurrentSample * sin (currentAngle)) * level);
+                    }
+                    else if (dynamic_cast<SquareWaveSound*>(sound) != NULL)
+                    {
+                        float sum = 0.0;
+                        
+                        for (int i=0; i<10; i++)
+                        {
+                            sum += sin(currentAngle * (2 * i + 1)) * level / (2 * i + 1);
+                        }
+                        
+                        currentSample = sum;
+                    }
+                    else if (dynamic_cast<SawToothWaveSound*>(sound) != NULL)
+                    {
+                        float sum = 0.0;
+                        
+                        for (int i=1; i<10; i++)
+                        {
+                            sum += (pow(-1.0, (double)i+1) / i) * (sin(currentAngle * i)) * level;
+                        }
+                        
+                        currentSample = sum;
+                    }
+                    else
+                    {
+                        std::cout << "Error! Defaulting to sine wave.\n";
+                        
+                        currentSample = (float) ((lfoCurrentSample * sin (currentAngle)) * level);
+                    }
                     
                     for (int i = outputBuffer.getNumChannels(); --i >= 0;)
                         *outputBuffer.getSampleData (i, startSample) += (currentSample);
@@ -174,6 +253,7 @@ private:
 
 const float defaultGain = 1.0f;
 const float defaultDelay = 0.5f;
+const Project2AudioProcessor::Wave defaultWaveType = Project2AudioProcessor::sine;
 
 //==============================================================================
 Project2AudioProcessor::Project2AudioProcessor()
@@ -182,6 +262,7 @@ Project2AudioProcessor::Project2AudioProcessor()
     // Set up some default values..
     gain = defaultGain;
     delay = defaultDelay;
+    waveType = defaultWaveType;
     
     lastUIWidth = 400;
     lastUIHeight = 200;
@@ -226,9 +307,36 @@ void Project2AudioProcessor::setParameter (int index, float newValue)
     // UI-related, or anything at all that may block in any way!
     switch (index)
     {
-        case gainParam:     gain = newValue;  break;
-        case delayParam:    delay = newValue;  break;
-        default:            break;
+        case gainParam:
+            gain = newValue;
+            break;
+        case delayParam:
+            delay = newValue;
+            break;
+        case waveParam:
+            waveType = (Wave)newValue;
+        
+            synth.clearSounds();
+            
+            if (waveType == sine)
+            {
+                std::cout << "Sine Wave!\n";
+                synth.addSound(new SineWaveSound());
+                
+            }
+            else if (waveType == square)
+            {
+                std::cout << "Square Wave!\n";
+                synth.addSound(new SquareWaveSound());
+            }
+            else if (waveType == sawTooth)
+            {
+                std::cout << "Sawtooth Wave!\n";
+                synth.addSound(new SawToothWaveSound());
+            }
+            break;
+        default:
+            break;
     }
 }
 

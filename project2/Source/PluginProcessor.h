@@ -89,11 +89,20 @@ public:
     {
         gainParam = 0,
         delayParam,
+        waveParam,
         
-        totalNumParams,
+        totalNumParams
+    };
+    
+    enum Wave
+    {
+        sine,
+        square,
+        sawTooth
     };
     
     float gain, delay;
+    Wave waveType;
 
 private:
     //==============================================================================
