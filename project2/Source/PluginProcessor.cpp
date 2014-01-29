@@ -50,6 +50,10 @@ public:
 class SineWaveVoice  : public SynthesiserVoice
 {
 public:
+    // Used to limit the number of loops through the summation equations
+    // used to calculate the "current value" of the specified wave
+    const int LOOP_COUNT = 10;
+    
     SineWaveVoice()
     : angleDelta (0.0),
     lfoAngleDelta(0.0),
@@ -134,6 +138,7 @@ public:
         // not interested in controllers in this case.
     }
     
+    // Renders the next block of sound and stores it into the output buffer
     void renderNextBlock (AudioSampleBuffer& outputBuffer, int startSample, int numSamples)
     {
         if (angleDelta != 0.0)
@@ -149,6 +154,7 @@ public:
                     // LFO used to create tremolo
                     const float lfoCurrentSample = (float) ((4.0 * sin (lfoCurrentAngle)) * level * tailOff) + 0.7;
                     
+                    // Calculate wave value taking into account wave type, lfo, and "tail off"
                     currentSample = calculateSample(sound, currentSample, lfoCurrentSample, true);
                     
                     for (int i = outputBuffer.getNumChannels(); --i >= 0;)
@@ -181,6 +187,7 @@ public:
                     // LFO used to create tremolo
                     const float lfoCurrentSample = (float) ((4.0 * sin (lfoCurrentAngle)) * level) + 0.7;
                     
+                    // Calculate wave value taking into accout wave type and lfo
                     currentSample = calculateSample(sound, currentSample, lfoCurrentSample, false);
                     
                     for (int i = outputBuffer.getNumChannels(); --i >= 0;)
@@ -194,6 +201,8 @@ public:
         }
     }
     
+    // This method determines the type of sound wave selected from the plugin UI and calculates an
+    // appropriate value using the appropriate formula
     float calculateSample(SynthesiserSound *sound, float currentSample, float lfo, bool hasTailOff)
     {
         if (hasTailOff)
@@ -206,7 +215,8 @@ public:
             {
                 float sum = 0.0;
                 
-                for (int i=0; i<10; i++)
+                // Summation calculation for square waves
+                for (int i = 0; i < LOOP_COUNT; i++)
                 {
                     sum += lfo * sin(currentAngle * (2 * i + 1)) * level * tailOff /
                     (2 * i + 1);
@@ -218,7 +228,8 @@ public:
             {
                 float sum = 0.0;
                 
-                for (int i=1; i<10; i++)
+                // Summation calculation for sawtooth waves
+                for (int i = 1; i < LOOP_COUNT; i++)
                 {
                     sum += lfo * (pow(-1.0, (double)i+1) / i) * (sin(currentAngle * i)) *
                     level * tailOff;
@@ -241,7 +252,8 @@ public:
             {
                 float sum = 0.0;
                 
-                for (int i=0; i<10; i++)
+                // Summation calculation for a square wave
+                for (int i = 0; i < LOOP_COUNT; i++)
                 {
                     sum += lfo * sin(currentAngle * (2 * i + 1)) * level / (2 * i + 1);
                 }
@@ -252,7 +264,8 @@ public:
             {
                 float sum = 0.0;
                 
-                for (int i=1; i<10; i++)
+                // Summation calculation for a sawtooth wave
+                for (int i = 1; i < LOOP_COUNT; i++)
                 {
                     sum += lfo * (pow(-1.0, (double)i+1) / i) * (sin(currentAngle * i)) * level;
                 }
@@ -474,7 +487,7 @@ void Project2AudioProcessor::reset()
 void Project2AudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
     const int numSamples = buffer.getNumSamples();
-    int channel, dp = 0;
+    int channel;//, dp = 0;
     
     // Go through the incoming data, and apply our gain to it...
     for (channel = 0; channel < getNumInputChannels(); ++channel)
@@ -487,7 +500,8 @@ void Project2AudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer
     // and now get the synth to process these midi events and generate its output.
     synth.renderNextBlock (buffer, midiMessages, 0, numSamples);
     
-    // **Commented out this code because we don't want delay effect for assgn 2**
+    // **Commented out code below because we don't want delay effect for assgn 2**
+    
     // Apply our delay effect to the new output..
 //    for (channel = 0; channel < getNumInputChannels(); ++channel)
 //    {

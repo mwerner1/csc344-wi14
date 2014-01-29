@@ -32,25 +32,30 @@ Project2AudioProcessorEditor::Project2AudioProcessorEditor (Project2AudioProcess
     gainSlider.addListener (this);
     gainSlider.setRange (0.0, 1.0, 0.01);
     
-    // **Commented this out since we don't want delay or echo effect for assgn 2**
+    // **Commented out code below since we don't want delay or echo effect for assgn 2**
+    
 //    addAndMakeVisible (delaySlider);
 //    delaySlider.setSliderStyle (Slider::Rotary);
 //    delaySlider.addListener (this);
 //    delaySlider.setRange (0.0, 1.0, 0.01);
     
+    // Create sine wave radio button
     addAndMakeVisible(sineWaveButton);
     sineWaveButton.setRadioGroupId(1);
     sineWaveButton.setState(Button::ButtonState::buttonDown);
     sineWaveButton.addListener(this);
     
+    // Create square wave radio button
     addAndMakeVisible(squareWaveButton);
     squareWaveButton.setRadioGroupId(1);
     squareWaveButton.addListener(this);
     
+    // Create sawtooth wave radio button
     addAndMakeVisible(sawToothWaveButton);
     sawToothWaveButton.setRadioGroupId(1);
     sawToothWaveButton.addListener(this);
     
+    // Attach "wave type" label to sine wave radio button
     waveTypeLabel.attachToComponent(&sineWaveButton, false);
     waveTypeLabel.setFont(Font (11.0f));
     
@@ -95,8 +100,11 @@ void Project2AudioProcessorEditor::resized()
 {
     infoLabel.setBounds (10, 4, 400, 25);
     gainSlider.setBounds (20, 60, 150, 40);
+    
+    // ** No slider needed for assignment 2 **
     //delaySlider.setBounds (200, 60, 150, 40);
     
+    // Specify locations of wave type radio buttons in the plugin UI
     sineWaveButton.setBounds(200, 60, 80, 30);
     squareWaveButton.setBounds(200, 80, 80, 30);
     sawToothWaveButton.setBounds(280, 60, 100, 30);
@@ -143,8 +151,11 @@ void Project2AudioProcessorEditor::sliderValueChanged (Slider* slider)
     }
 }
 
+// This is the "select wave type" radio button listener callback that runs when
+// a wave type is selected
 void Project2AudioProcessorEditor::buttonClicked(Button* button)
 {
+    // Determine which button in the group was selected and pass to plugin processor
     if (sineWaveButton.getToggleState())
     {
         getProcessor()->setParameterNotifyingHost(Project2AudioProcessor::waveParam,
