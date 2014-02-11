@@ -102,7 +102,7 @@ public:
 
 private:
     //==============================================================================
-    AudioSampleBuffer delayBuffer;
+    AudioSampleBuffer delayBuffer, lowPassBuffer;
     int delayPosition;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Project3AudioProcessor)

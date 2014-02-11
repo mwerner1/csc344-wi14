@@ -17,14 +17,16 @@ AudioProcessor* JUCE_CALLTYPE createPluginFilter();
 
 const float defaultGain = 1.0f;
 const float defaultDelay = 0.0f;
-const float defaultCutoff = 0.0f;
+const float defaultCutoff = 1.0f;
 const std::complex<double> imag = std::sqrt(std::complex<double>(-1));
 std::complex<double> arr[4];
 std::complex<double> zPoles[4];
+std::complex<double> coefficients[4];
+
 
 //==============================================================================
 Project3AudioProcessor::Project3AudioProcessor()
-    : delayBuffer(2, 12000)
+    : delayBuffer(2, 12000), lowPassBuffer(2, 4)
 {
     // Set up some default values..
     gain = defaultGain;
@@ -38,10 +40,10 @@ Project3AudioProcessor::Project3AudioProcessor()
     delayPosition = 0;
     
     //compute chebyshev poles
-    for (int i=1; i<=4; i++)
+    for (int i=0; i<4; i++)
     {
-        arr[i-1] = imag * cos((1.0 / 4.0) * acos((imag/0.5)) + ((i * double_Pi) / 4));
-        std::cout << "S Pole " << i << ": " << arr[i-1] << "\n";
+        arr[i] = imag * cos((1.0 / 4.0) * acos((imag/0.5)) + (((i) * double_Pi) / 4));
+        std::cout << "S Pole " << i+1 << ": " << arr[i] << "\n";
     }
 }
 
@@ -88,16 +90,29 @@ void Project3AudioProcessor::setParameter (int index, float newValue)
         case cutoffParam:
             cutoff = (newValue / getSampleRate()) * double_Pi;
             
-            std::cout << "Sample Rate: " << getSampleRate() << "\n";
             
             // iterate through poles in s-space scale them and translate to z-space
-            for (int i=1; i<=4; i++)
+            for (int i=0; i<4; i++)
             {
-                scaledValue = arr[i-1] * (double)cutoff;
-                zPoles[i-1] = (1.0 + scaledValue / 2.0) / (1.0 - scaledValue / 2.0);
+                scaledValue = arr[i] * (double)cutoff;
+                zPoles[i] = (1.0 + (scaledValue / 2.0)) / (1.0 - (scaledValue / 2.0));
                 
-                std::cout << "Z Pole " << i << ": " << zPoles[i-1] << "\n";
+                std::cout << "Z Pole " << i+1 << ": " << zPoles[i] << "\n";
             }
+            
+            // calculate coefficients
+            coefficients[0] = -1.0 * (zPoles[0] + zPoles[1] + zPoles[2] + zPoles[3]);
+            coefficients[1] = (zPoles[0] * zPoles[1]) + (zPoles[0] * zPoles[2]) + (zPoles[0] * zPoles[3]) +
+                (zPoles[1] * zPoles[2]) + (zPoles[1] * zPoles[3]) + (zPoles[2] * zPoles[3]);
+            coefficients[2] = -1.0 * ((zPoles[0] * zPoles[1] * zPoles[2]) + (zPoles[0] * zPoles[1] * zPoles[3]) +
+                (zPoles[0] * zPoles[2] * zPoles[3]) + (zPoles[1] * zPoles[2] * zPoles[3]));
+            coefficients[3] = zPoles[0] * zPoles[1] * zPoles[2] * zPoles[3];
+            
+            for (int i=0; i<4; i++)
+            {
+                std::cout << "Coefficient " << i+1 << ": " << coefficients[i] << "\n";
+            }
+            
             break;
         default:            break;
     }
@@ -212,6 +227,7 @@ void Project3AudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
     // initialisation that you need..
     keyboardState.reset();
     delayBuffer.clear();
+    lowPassBuffer.clear();
 }
 
 void Project3AudioProcessor::releaseResources()
@@ -226,6 +242,7 @@ void Project3AudioProcessor::reset()
     // Use this method as the place to clear any delay lines, buffers, etc, as it
     // means there's been a break in the audio's continuity.
     delayBuffer.clear();
+    lowPassBuffer.clear();
 }
 
 void Project3AudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
@@ -251,6 +268,39 @@ void Project3AudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer
             delayData[dp] = (delayData[dp] + in) * delay;
             if (++dp >= delayBuffer.getNumSamples())
                 dp = 0;
+        }
+    }
+    
+    // Iterate over all channels
+    for (channel = 0; channel < getNumInputChannels(); channel++)
+    {
+        // Raw sample values
+        float *channelData = buffer.getSampleData(channel);
+        
+        // Buffer of previous 4 outputs initially set to 0s
+        float *lowPassData = lowPassBuffer.getSampleData(jmin(channel, lowPassBuffer.getNumChannels() - 1));
+        
+        // Iterate over all samples
+        for (int i=0; i < numSamples; i++)
+        {
+            // Iterate through previous outputs and perform calculation for next output
+            for (int j=0; j<lowPassBuffer.getNumSamples(); j++)
+            {
+                channelData[i] += -1.0 * coefficients[j].real() * lowPassData[j];
+            }
+            
+            for (int j=lowPassBuffer.getNumSamples()-1; j>=0; j--)
+            {
+                if (j == 0)
+                {
+                    lowPassData[0] = channelData[i];
+                }
+                else
+                {
+                    lowPassData[j] = lowPassData[j-1];
+                }
+            }
+            
         }
     }
     
