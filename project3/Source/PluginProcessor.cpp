@@ -88,7 +88,7 @@ void Project3AudioProcessor::setParameter (int index, float newValue)
         case gainParam:     gain = newValue;  break;
         case delayParam:    delay = newValue;  break;
         case cutoffParam:
-            cutoff = (newValue / getSampleRate()) * double_Pi;
+            cutoff = (newValue / (getSampleRate() / 2.0)) * double_Pi;
             
             
             // iterate through poles in s-space scale them and translate to z-space
@@ -286,14 +286,14 @@ void Project3AudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer
             // Iterate through previous outputs and perform calculation for next output
             for (int j=0; j<lowPassBuffer.getNumSamples(); j++)
             {
-                channelData[i] += -1.0 * coefficients[j].real() * lowPassData[j];
+                channelData[i] -= coefficients[j].real() * lowPassData[j];
             }
             
             for (int j=lowPassBuffer.getNumSamples()-1; j>=0; j--)
             {
                 if (j == 0)
                 {
-                    lowPassData[0] = channelData[i];
+                    lowPassData[j] = channelData[i];
                 }
                 else
                 {
@@ -302,6 +302,8 @@ void Project3AudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer
             }
             
         }
+        
+        lowPassBuffer.clear();
     }
     
     delayPosition = dp;
