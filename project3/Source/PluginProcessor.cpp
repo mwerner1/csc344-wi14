@@ -251,25 +251,25 @@ void Project3AudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer
     int channel, dp = 0;
     
     // Go through the incoming data, and apply our gain to it...
-    for (channel = 0; channel < getNumInputChannels(); ++channel)
-        buffer.applyGain (channel, 0, buffer.getNumSamples(), gain);
+//    for (channel = 0; channel < getNumInputChannels(); ++channel)
+//        buffer.applyGain (channel, 0, buffer.getNumSamples(), gain);
     
     // Apply our delay effect to the new output..
-    for (channel = 0; channel < getNumInputChannels(); ++channel)
-    {
-        float* channelData = buffer.getSampleData (channel);
-        float* delayData = delayBuffer.getSampleData (jmin (channel, delayBuffer.getNumChannels() - 1));
-        dp = delayPosition;
-        
-        for (int i = 0; i < numSamples; ++i)
-        {
-            const float in = channelData[i];
-            channelData[i] += delayData[dp];
-            delayData[dp] = (delayData[dp] + in) * delay;
-            if (++dp >= delayBuffer.getNumSamples())
-                dp = 0;
-        }
-    }
+//    for (channel = 0; channel < getNumInputChannels(); ++channel)
+//    {
+//        float* channelData = buffer.getSampleData (channel);
+//        float* delayData = delayBuffer.getSampleData (jmin (channel, delayBuffer.getNumChannels() - 1));
+//        dp = delayPosition;
+//        
+//        for (int i = 0; i < numSamples; ++i)
+//        {
+//            const float in = channelData[i];
+//            channelData[i] += delayData[dp];
+//            delayData[dp] = (delayData[dp] + in) * delay;
+//            if (++dp >= delayBuffer.getNumSamples())
+//                dp = 0;
+//        }
+//    }
     
     // Iterate over all channels
     for (channel = 0; channel < getNumInputChannels(); channel++)
@@ -283,12 +283,20 @@ void Project3AudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer
         // Iterate over all samples
         for (int i=0; i < numSamples; i++)
         {
+            channelData[i] *= (1.0 + coefficients[0].real() + coefficients[1].real() +
+                               coefficients[2].real() + coefficients[3].real());
+            
             // Iterate through previous outputs and perform calculation for next output
             for (int j=0; j<lowPassBuffer.getNumSamples(); j++)
             {
                 channelData[i] -= coefficients[j].real() * lowPassData[j];
+                
             }
             
+            // Uncomment to scale down?
+            //channelData[i] *= 0.000156821;
+            
+            // "Shift" previous output buffer
             for (int j=lowPassBuffer.getNumSamples()-1; j>=0; j--)
             {
                 if (j == 0)
@@ -303,7 +311,7 @@ void Project3AudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer
             
         }
         
-        lowPassBuffer.clear();
+        //lowPassBuffer.clear();
     }
     
     delayPosition = dp;
