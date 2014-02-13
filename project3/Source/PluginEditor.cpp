@@ -38,7 +38,7 @@ Project3AudioProcessorEditor::Project3AudioProcessorEditor (Project3AudioProcess
     addAndMakeVisible(cutoffSlider);
     cutoffSlider.setSliderStyle(Slider::Rotary);
     cutoffSlider.addListener(this);
-    cutoffSlider.setRange(1.0, 3000.0, 1.0);
+    cutoffSlider.setRange(100.0, 3000.0, 1.0);
     
     // add some labels for the sliders..
     gainLabel.attachToComponent (&gainSlider, false);
