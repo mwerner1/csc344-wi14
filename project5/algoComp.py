@@ -3,9 +3,17 @@ from midiutil.MidiFile import MIDIFile
 import random
 import sys
 
+''' 
+This function uses the current note and the first order Markov matrix
+to determine the next note to play
+'''
 def nextNote(currentNote, matrix):
   return random.choice(matrix[currentNote])
 
+'''
+This function creates a dictionary that maps each note string to its
+corresponding midi value
+'''
 def createLookup():
   noteLookup = {'c0':0, 'c#0':1, 'd0':2, 'd#0':3, 'e0':4, 'f0':5, 'f#0':6, 
   'g0':7, 'g#0':8, 'a0':9, 'a#0':10, 'b0':11, 'c1':12, 'c#1':13, 'd1':14, 
@@ -27,31 +35,45 @@ def createLookup():
 
   return noteLookup
 
+'''
+This function adds the notes from the appropriate text file to the first
+order Markov matrix
+'''
 def addToMatrix(noteList, matrix):
   i = 0
   while i < len(noteList) - 1:
     matrix.setdefault(noteList[i],[]).append(noteList[i + 1])
     i += 1
 
+'''
+Main function that reads note/chord strings from a text file and writes
+output to a midi file
+'''
 def main():
+  # Check if correct number of command line args are present
   if len(sys.argv) == 2:
     songFile = sys.argv[1]
   else:
     sys.exit("Missing an input text file with notes")
 
+  # Open text file containing song notes
   noteFile = open(songFile, 'r')
 
+  # Read in notes from text file
   noteLines = noteFile.readlines()
 
   noteFile.close();
 
+  # Separate notes from each line of the text file and add to notes 
   notes = []
   for line in noteLines:
     notes = notes + line.split()
 
+  # Initialize matrix and add notes
   markovMatrix = {}
   addToMatrix(notes, markovMatrix)
 
+  # Randomly select first note to play
   currNote = random.choice(notes)
 
   # Create the MIDIFile Object
@@ -70,29 +92,43 @@ def main():
   midFile.addTrackName(track, time, "Main Track")
   midFile.addTempo(track, time, 140)
   
+  # Loop and generate the next notes determined by the currently playing note
   for i in xrange(200):
     print currNote + ', '
   
-    time = i
+    time = i 
  
+    # comma means it is a chord.  Split into individual notes from chord
     if ',' in currNote:
       chord = currNote.split(',')
 
+      # Loop through notes in chord and determine duration note is played
       for note in chord:
         notePlusLen = note.split('-')
         if len(notePlusLen) == 2:
           duration = float(notePlusLen[1])
+        
+        # Lookup midi value of note
         pitch = lookup[notePlusLen[0]]
+
+        # Add note to midi file
         midFile.addNote(track, channel, pitch, time, duration, volume)
     else:
+      # '-' separates note and duration
       notePlusLen = currNote.split('-')
       if len(notePlusLen) == 2:
         duration = float(notePlusLen[1])
+
+      # Lookup midi value of note
       pitch = lookup[notePlusLen[0]]
+
+      # Add note to midi file
       midFile.addNote(track, channel, pitch, time, duration, volume)
 
+    # Determine the next note to play using the current note and matrix
     currNote = nextNote(currNote, markovMatrix)
 
+  # Write to midi file and close
   binfile = open("bond.mid", 'wb')
   midFile.writeFile(binfile)
   binfile.close()
